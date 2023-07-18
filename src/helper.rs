@@ -1,9 +1,13 @@
 use cosmwasm_std::{Binary, StdError};
-pub use ethabi; 
-pub use hex; 
-use ethabi::{ethereum_types::{Address, U256}, decode, ParamType, Token, encode};
+use hex;
+use router_wasm_bindings::ethabi::{ethereum_types::{Address, U256}, ParamType, decode, encode, Token};
+use cosmwasm_std::Coin;
 
 use crate::ContractError;
+
+const MIN_NAME_LENGTH: u64 = 3;
+const MAX_NAME_LENGTH: u64 = 64;
+const ISEND_ID: u64 = 125;
 
 pub struct TakeLastXBytes(pub usize);
 
@@ -80,7 +84,7 @@ pub fn get_request_metadata(
     gas_price: u64,
     ack_gas_limit: u64,
     ack_gas_price: u64,
-    relayer_fees: u64,
+    relayer_fees: u128,
     ack_type: u8,
     is_read_call: bool,
     asm_address: String,
@@ -90,7 +94,7 @@ pub fn get_request_metadata(
         SolidityDataType::NumberWithShift(U256::from(gas_price), TakeLastXBytes(64)),
         SolidityDataType::NumberWithShift(U256::from(ack_gas_limit), TakeLastXBytes(64)),
         SolidityDataType::NumberWithShift(U256::from(ack_gas_price), TakeLastXBytes(64)),
-        SolidityDataType::NumberWithShift(U256::from(relayer_fees), TakeLastXBytes(64)),
+        SolidityDataType::NumberWithShift(U256::from(relayer_fees), TakeLastXBytes(128)),
         SolidityDataType::NumberWithShift(U256::from(ack_type), TakeLastXBytes(8)),
         SolidityDataType::Bool(is_read_call),
         SolidityDataType::String(asm_address.as_str())
@@ -102,7 +106,7 @@ pub fn get_request_metadata(
 
 pub fn abi_decode_to_binary(enc: &Binary) -> Result<Binary, ContractError> {
     let param_types = vec![ParamType::Bytes];
-    let payload = decode(&param_types, enc.as_slice()).or_else(|e| {
+    let payload = decode(&param_types, enc.as_slice()).or_else(|_| {
         Err(ContractError::Std(StdError::generic_err("error: abi_decode_to_binary")))
     })?;
     let payload_byte = match payload[0].clone() {
@@ -118,6 +122,99 @@ pub fn abi_encode_string(stri: &String) -> Binary {
     return Binary::from(enc);
 }
 
+pub fn assert_sent_sufficient_coin(
+    sent: &[Coin],
+    required: Option<Coin>,
+) -> Result<(), ContractError> {
+    if let Some(required_coin) = required {
+        let required_amount = required_coin.amount.u128();
+        if required_amount > 0 {
+            let sent_sufficient_funds = sent.iter().any(|coin| {
+                // check if a given sent coin matches denom
+                // and has sufficient amount
+                coin.denom == required_coin.denom && coin.amount.u128() >= required_amount
+            });
+
+            if sent_sufficient_funds {
+                return Ok(());
+            } else {
+                return Err(ContractError::InsufficientFundsSend {});
+            }
+        }
+    }
+    Ok(())
+}
+
+// let's not import a regexp library and just do these checks by hand
+fn invalid_char(c: char) -> bool {
+    let is_valid =
+        c.is_ascii_digit() || c.is_ascii_lowercase() || (c == '.' || c == '-' || c == '_');
+    !is_valid
+}
+
+/// validate_name returns an error if the name is invalid
+/// (we require 3-64 lowercase ascii letters, numbers, or . - _)
+pub fn validate_name(name: &str) -> Result<(), ContractError> {
+    let length = name.len() as u64;
+    if (name.len() as u64) < MIN_NAME_LENGTH {
+        Err(ContractError::NameTooShort {
+            length,
+            min_length: MIN_NAME_LENGTH,
+        })
+    } else if (name.len() as u64) > MAX_NAME_LENGTH {
+        Err(ContractError::NameTooLong {
+            length,
+            max_length: MAX_NAME_LENGTH,
+        })
+    } else {
+        match name.find(invalid_char) {
+            None => Ok(()),
+            Some(bytepos_invalid_char_start) => {
+                let c = name[bytepos_invalid_char_start..].chars().next().unwrap();
+                Err(ContractError::InvalidCharacter { c })
+            }
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use cosmwasm_std::{coin, coins};
+
+    #[test]
+    fn assert_sent_sufficient_coin_works() {
+        match assert_sent_sufficient_coin(&[], Some(coin(0, "token"))) {
+            Ok(()) => {}
+            Err(e) => panic!("Unexpected error: {:?}", e),
+        };
+
+        match assert_sent_sufficient_coin(&[], Some(coin(5, "token"))) {
+            Ok(()) => panic!("Should have raised insufficient funds error"),
+            Err(ContractError::InsufficientFundsSend {}) => {}
+            Err(e) => panic!("Unexpected error: {:?}", e),
+        };
+
+        match assert_sent_sufficient_coin(&coins(10, "smokin"), Some(coin(5, "token"))) {
+            Ok(()) => panic!("Should have raised insufficient funds error"),
+            Err(ContractError::InsufficientFundsSend {}) => {}
+            Err(e) => panic!("Unexpected error: {:?}", e),
+        };
+
+        match assert_sent_sufficient_coin(&coins(10, "token"), Some(coin(5, "token"))) {
+            Ok(()) => {}
+            Err(e) => panic!("Unexpected error: {:?}", e),
+        };
+
+        let sent_coins = vec![coin(2, "smokin"), coin(5, "token"), coin(1, "earth")];
+        match assert_sent_sufficient_coin(&sent_coins, Some(coin(5, "token"))) {
+            Ok(()) => {}
+            Err(e) => panic!("Unexpected error: {:?}", e),
+        };
+    }
+}
+
 #[test]
 fn encode_string1() {
     let stri = "{\"resolve_record\": {\"name\": \"test5\"}}".to_string();
@@ -130,4 +227,10 @@ fn decode_to_binary() {
     let bin = Binary::from_base64("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJXsicmVzb2x2ZV9yZWNvcmQiOiB7Im5hbWUiOiAidGVzdDUifX0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=").unwrap();
     let dec = abi_decode_to_binary(&bin).unwrap();
     print!("{:?}", dec);
+}
+
+#[test]
+fn get_metadata() {
+    let metadata = get_request_metadata(0, 0, 0, 0, 0, 3, false, "".to_string());
+    print!("{:?}", metadata);
 }

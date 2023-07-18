@@ -1,5 +1,5 @@
-pub mod coin_helpers;
 pub mod contract;
+pub mod execute;
 mod error;
 pub mod msg;
 pub mod state;

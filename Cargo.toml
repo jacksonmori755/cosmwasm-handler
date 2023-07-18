@@ -31,11 +31,12 @@ library = []
 [dependencies]
 cosmwasm-std = "1.1.0"
 cosmwasm-storage = "1.1.0"
-cw-storage-plus = "0.13.4"
+cw-storage-plus = "1.1.0"
 cosmwasm-schema = "1.1.0"
 thiserror = "1.0.31"
-ethabi = "18.0.0"
 hex = "0.4.3"
+router-wasm-bindings = { version = "0.2.4", default-features = false, features = ["ethabi"] }
+
 
 [dev-dependencies]
 
