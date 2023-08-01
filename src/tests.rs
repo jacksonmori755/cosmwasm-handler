@@ -5,7 +5,7 @@ use crate::helper::{abi_encode_string, myprint};
 #[cfg(test)]
 mod test_module {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coin, coins, from_binary, Coin, Deps, DepsMut, to_binary, Binary, Empty};
+    use cosmwasm_std::{coin, coins, from_binary, Coin, Deps, DepsMut, Binary};
 
     use crate::contract::{execute, instantiate, query};
     use crate::error::ContractError;

@@ -1,15 +1,15 @@
 use cosmwasm_std::{
     from_binary, wasm_execute, Binary, DepsMut, Env,
-    MessageInfo, ReplyOn, Response, StdError, SubMsg, to_binary,
+    MessageInfo, ReplyOn, Response, SubMsg, to_binary,
 };
-use router_wasm_bindings::ethabi::Contract;
+
 
 use crate::error::ContractError;
 use crate::helper::{
     abi_encode_string, assert_sent_sufficient_coin, get_request_packet, validate_name, abi_decode_to_binary,
 };
 use crate::msg::{
-    ExecuteMsg, GatewayMsg, CustomExecuteMsg,
+    GatewayMsg, CustomExecuteMsg,
 };
 use crate::state::{NameRecord, CONFIG, NAME_RESOLVER, REQUEST, RESULT};
 

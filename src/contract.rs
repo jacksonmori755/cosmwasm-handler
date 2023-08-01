@@ -75,7 +75,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     }
 }
 
-fn i_query(deps: Deps, env: Env, payload: Binary) -> StdResult<Binary> {
+fn i_query(deps: Deps, _env: Env, payload: Binary) -> StdResult<Binary> {
     let decoded = abi_decode_to_binary(&payload).or(Err(StdError::generic_err("abi_decode_error".to_string())))?;
     let query_msg: CustomQueryMsg = from_binary(&decoded)?;
     match query_msg {
