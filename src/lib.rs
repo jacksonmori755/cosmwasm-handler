@@ -4,6 +4,8 @@ mod error;
 pub mod msg;
 pub mod state;
 pub mod helper;
+pub mod consts;
+pub mod reply;
 
 #[cfg(test)]
 mod tests;

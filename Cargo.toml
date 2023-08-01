@@ -36,7 +36,7 @@ cosmwasm-schema = "1.1.0"
 thiserror = "1.0.31"
 hex = "0.4.3"
 router-wasm-bindings = { version = "0.2.4", default-features = false, features = ["ethabi"] }
-
+cw-utils = "1.0.1"
 
 [dev-dependencies]
 

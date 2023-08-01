@@ -1,20 +1,19 @@
 use cosmwasm_std::{
-    entry_point, from_binary, from_slice, to_binary, wasm_execute, Binary, Deps, DepsMut, Env,
-    MessageInfo, ReplyOn, Response, StdError, StdResult, SubMsg,
+    from_binary, wasm_execute, Binary, DepsMut, Env,
+    MessageInfo, ReplyOn, Response, StdError, SubMsg, to_binary,
 };
+use router_wasm_bindings::ethabi::Contract;
 
 use crate::error::ContractError;
 use crate::helper::{
-    abi_encode_string, assert_sent_sufficient_coin, get_request_packet, validate_name,
+    abi_encode_string, assert_sent_sufficient_coin, get_request_packet, validate_name, abi_decode_to_binary,
 };
 use crate::msg::{
-    ConfigResponse, ExecuteMsg, GatewayMsg, InstantiateMsg, QueryMsg, ResolveRecordResponse,
+    ExecuteMsg, GatewayMsg, CustomExecuteMsg,
 };
-use crate::state::{Config, NameRecord, CONFIG, NAME_RESOLVER, REQUEST};
+use crate::state::{NameRecord, CONFIG, NAME_RESOLVER, REQUEST, RESULT};
 
-const MIN_NAME_LENGTH: u64 = 3;
-const MAX_NAME_LENGTH: u64 = 64;
-const ISEND_ID: u64 = 125;
+use crate::consts::ISEND_ID;
 
 pub fn execute_register(
     deps: DepsMut,
@@ -28,7 +27,7 @@ pub fn execute_register(
     assert_sent_sufficient_coin(&info.funds, config.purchase_price)?;
 
     let key = name.as_bytes();
-    let record = NameRecord { owner: info.sender };
+    let record = NameRecord { owner: info.sender.clone() };
 
     if (NAME_RESOLVER.may_load(deps.storage, key)?).is_some() {
         // name is already taken
@@ -37,8 +36,11 @@ pub fn execute_register(
 
     // name is available
     NAME_RESOLVER.save(deps.storage, key, &record)?;
-
-    Ok(Response::default())
+    let result_txt = format!("execute_register, name: {}, owner: {}", name, info.sender.to_string());
+    let result = abi_encode_string(&result_txt);
+    RESULT.save(deps.storage, &result)?;
+    let response = Response::new().set_data(result);
+    Ok(response)
 }
 
 pub fn execute_transfer(
@@ -65,7 +67,11 @@ pub fn execute_transfer(
             Err(ContractError::NameNotExists { name: name.clone() })
         }
     })?;
-    Ok(Response::default())
+    let result_txt = format!("execute_register, name: {}, to: {}", name, to);
+    let result = abi_encode_string(&result_txt);
+    RESULT.save(deps.storage, &result)?;
+    let response = Response::new().set_data(result);
+    Ok(response)
 }
 
 pub fn execute_i_receive(
@@ -76,11 +82,12 @@ pub fn execute_i_receive(
     _request_sender: String,
     payload: Binary,
 ) -> Result<Response, ContractError> {
-    let msg = from_binary(&payload)?;
+    let decoded = abi_decode_to_binary(&payload)?;
+    REQUEST.save(deps.storage, &decoded)?;
+    let msg: CustomExecuteMsg = from_binary(&decoded)?;
     match msg {
-        ExecuteMsg::Register { name } => execute_register(deps, env, info, name),
-        ExecuteMsg::Transfer { name, to } => execute_transfer(deps, env, info, name, to),
-        _ => Err(StdError::generic_err("msg").into()),
+        CustomExecuteMsg::Register { name } => execute_register(deps, env, info, name),
+        CustomExecuteMsg::Transfer { name, to } => execute_transfer(deps, env, info, name, to),
     }
 }
 
@@ -92,15 +99,16 @@ pub fn execute_i_ack(
     exec_data: Binary,
 ) -> Result<Response, ContractError> {
     REQUEST.save(deps.storage, &exec_data)?;
-    let result_txt = format!("Ack from handler contract:\naddress:{}\nrequest_identifier: {}\nexec_status:{}\nexec_data:{:?}", 
+    let result_txt = format!("Ack from handler contract:\naddress: {}\nrequest_identifier: {}\nexec_status:{}\nexec_data:{:?}", 
     env.contract.address.to_string(), request_identifier, exec_status, exec_data);
     let result = abi_encode_string(&result_txt);
+    RESULT.save(deps.storage, &result)?;
     Ok(Response::new().set_data(result))
 }
 
 pub fn execute_i_send(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     version: u64,
     route_amount: u64,
     route_recipient: String,
@@ -119,7 +127,22 @@ pub fn execute_i_send(
         request_metadata,
         request_packet,
     };
+    REQUEST.save(deps.storage, &to_binary(&i_send_msg)?)?;
     let gateway_send_msg = wasm_execute(gateway_address, &i_send_msg, vec![])?;
+    let submsg = SubMsg {
+        id: ISEND_ID,
+        gas_limit: None,
+        reply_on: ReplyOn::Always,
+        msg: gateway_send_msg.into(),
+    };
+    let response = Response::new().add_submessage(submsg);
+    Ok(response)
+}
+
+pub fn set_dapp_metadata(deps: DepsMut, fee_payer_address: String, gateway_address: String) -> Result<Response, ContractError> {
+    let set_dapp_metadata_msg = GatewayMsg::SetDappMetadata { fee_payer_address };
+    REQUEST.save(deps.storage, &to_binary(&set_dapp_metadata_msg)?)?;
+    let gateway_send_msg = wasm_execute(gateway_address, &set_dapp_metadata_msg, vec![])?;
     let submsg = SubMsg {
         id: ISEND_ID,
         gas_limit: None,

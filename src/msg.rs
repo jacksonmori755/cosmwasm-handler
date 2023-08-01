@@ -23,12 +23,16 @@ pub enum ExecuteMsg {
     IReceive {
         src_chain_id: String,
         request_sender: String,
-        payload: Binary,
+        packet: Binary,
     },
     IAck {
         request_identifier: u64,
         exec_status: bool,
         exec_data: Binary
+    },
+    SetDappMetadata {
+        fee_payer_address: String,
+        gateway_address: String,
     },
     Register {
         name: String,
@@ -60,6 +64,9 @@ pub enum GatewayMsg {
         request_metadata: Binary,
         request_packet: Binary,
     },
+    SetDappMetadata {
+        fee_payer_address: String,
+    },
 }
 
 #[cw_serde]
@@ -70,10 +77,13 @@ pub enum QueryMsg {
     ResolveRecord { name: String },
     #[returns(ConfigResponse)]
     Config {},
-    #[returns(RequestResponse)]
-    Request {},
+    #[returns(LoadStatesResponse)]
+    LoadStates {},
+    #[returns(Binary)]
+    IQuery { packet: Binary }
 }
 
+#[cw_serde]
 pub enum CustomQueryMsg {
         // ResolveAddress returns the current address that the name resolves to
         ResolveRecord { name: String },
@@ -103,8 +113,12 @@ impl From<Config> for ConfigResponse {
 
 
 #[cw_serde]
-pub struct RequestResponse {
-    pub request: Option<Binary>,
+pub struct LoadStatesResponse {
+    pub name_resolver: Vec<(String, String)>,
+    pub request: Binary,
+    pub result: Binary,
+    pub nonce: u64,
+    pub pending: Vec<u64>
 }
 
 

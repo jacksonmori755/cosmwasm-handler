@@ -4,10 +4,7 @@ use router_wasm_bindings::ethabi::{ethereum_types::{Address, U256}, ParamType, d
 use cosmwasm_std::Coin;
 
 use crate::ContractError;
-
-const MIN_NAME_LENGTH: u64 = 3;
-const MAX_NAME_LENGTH: u64 = 64;
-const ISEND_ID: u64 = 125;
+use crate::consts::{MAX_NAME_LENGTH, MIN_NAME_LENGTH};
 
 pub struct TakeLastXBytes(pub usize);
 
@@ -177,6 +174,10 @@ pub fn validate_name(name: &str) -> Result<(), ContractError> {
     }
 }
 
+pub fn myprint(stri: String) {
+    let new_line = "\n===========================================================\n".to_string();
+    print!("{}{}{}", new_line, stri, new_line);
+}   
 
 #[cfg(test)]
 mod test {
@@ -217,9 +218,9 @@ mod test {
 
 #[test]
 fn encode_string1() {
-    let stri = "{\"resolve_record\": {\"name\": \"test5\"}}".to_string();
+    let stri = "{\"register\": {\"name\": \"test22\"}}".to_string();
     let enc = abi_encode_string(&stri);
-    print!("enc: {:?}", enc);
+    myprint(format!("enc: {:?}\nbase64: {}", enc, enc.to_base64()));
 }
 
 #[test]

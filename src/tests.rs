@@ -1,3 +1,7 @@
+use cosmwasm_std::Binary;
+
+use crate::helper::{abi_encode_string, myprint};
+
 #[cfg(test)]
 mod test_module {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
@@ -392,3 +396,17 @@ mod test_module {
       
     }
 }   
+
+
+#[test]
+fn test_i_ack_result() {
+    let contract_address = "osmo18f0822ahrpl3xzvuxwjfl0qz53z8cn3ncaa2fr2zf0xc2rzsytcq77k0zq".to_string();
+    let request_identifier: u64 = 2;
+    let exec_status = true;
+    let exec_data = Binary::from_base64("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJXsicmVzb2x2ZV9yZWNvcmQiOiB7Im5hbWUiOiAidGVzdDUifX0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=").unwrap();
+    let result_txt = format!("Ack from handler contract, \naddress:{}, \nrequest_identifier: {}, \nexec_status:{}, \nexec_data:{:?}", 
+        contract_address, request_identifier, exec_status, exec_data);
+    // let result_txt = "result_txt".to_string();
+    let result = abi_encode_string(&result_txt);
+    myprint(format!("result-txt: {}\nresult: {:?}\nbase64: {}", result_txt, result, result.to_base64()));
+}
