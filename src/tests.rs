@@ -1,6 +1,6 @@
-use cosmwasm_std::Binary;
+// use cosmwasm_std::Binary;
 
-use crate::helper::{abi_encode_string, myprint};
+// use crate::helper::{abi_encode_string, myprint};
 
 #[cfg(test)]
 mod test_module {
@@ -373,40 +373,18 @@ mod test_module {
         let value: ResolveRecordResponse = from_binary(&res).unwrap();
         assert_eq!(None, value.address);
     }
-
-    #[test]
-    fn get_binary(){
-        // let msg = QueryMsg::ResolveRecord { name: "hihi".to_string() };
-        // // let msg = ExecuteMsg::Register { name: "hello".to_string() };
-        // // print!("{:?}", to_binary(&msg).unwrap());
-        // let msg_bin = to_binary(&msg).unwrap();
-        
-        // let msg_enc = msg_bin.to_base64();
-        // print!("{:?}", msg_enc);
-        // let bin = Binary::from_base64("eyJyZWdpc3RlciI6eyJuYW1lIjoidGVzdCJ9fQ==").unwrap();
-        // let msg_ori: ExecuteMsg = from_binary(&bin).unwrap();
-        // print!("{:?}", msg_ori);
-        // let bin1 = to_binary(&Empty {}).unwrap();
-        // let s:ExecuteMsg = from_binary(&Binary::from_base64(&"eyJyZWdpc3RlciI6eyJuYW1lIjoiaGUifX0=").unwrap()).unwrap();
-        // print!("{:?}", s);
-        // print!("{:?}", to_binary(&"test".to_string()).unwrap().to_base64())
-        let bin = Binary::from_base64("Ck17ImFkZHJlc3MiOiJvc21vMXN4cWh1Njg1d2ZmOGVnOThlNHZsdTJzbDhhNTdxemU1cnowaGt5emoyNWY3MHZhcmx4eXFxdnFuM24ifQ==").unwrap();
-        let res: ResolveResultResponse = from_binary(&bin).unwrap();
-        print!("{:?}", res);
-      
-    }
 }   
 
 
-#[test]
-fn test_i_ack_result() {
-    let contract_address = "osmo18f0822ahrpl3xzvuxwjfl0qz53z8cn3ncaa2fr2zf0xc2rzsytcq77k0zq".to_string();
-    let request_identifier: u64 = 2;
-    let exec_status = true;
-    let exec_data = Binary::from_base64("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJXsicmVzb2x2ZV9yZWNvcmQiOiB7Im5hbWUiOiAidGVzdDUifX0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=").unwrap();
-    let result_txt = format!("Ack from handler contract, \naddress:{}, \nrequest_identifier: {}, \nexec_status:{}, \nexec_data:{:?}", 
-        contract_address, request_identifier, exec_status, exec_data);
-    // let result_txt = "result_txt".to_string();
-    let result = abi_encode_string(&result_txt);
-    myprint(format!("result-txt: {}\nresult: {:?}\nbase64: {}", result_txt, result, result.to_base64()));
-}
+// #[test]
+// fn test_i_ack_result() {
+//     let contract_address = "osmo18f0822ahrpl3xzvuxwjfl0qz53z8cn3ncaa2fr2zf0xc2rzsytcq77k0zq".to_string();
+//     let request_identifier: u64 = 2;
+//     let exec_status = true;
+//     let exec_data = Binary::from_base64("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJXsicmVzb2x2ZV9yZWNvcmQiOiB7Im5hbWUiOiAidGVzdDUifX0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=").unwrap();
+//     let result_txt = format!("Ack from handler contract, \naddress:{}, \nrequest_identifier: {}, \nexec_status:{}, \nexec_data:{:?}", 
+//         contract_address, request_identifier, exec_status, exec_data);
+//     // let result_txt = "result_txt".to_string();
+//     let result = abi_encode_string(&result_txt);
+//     myprint(format!("result-txt: {}\nresult: {:?}\nbase64: {}", result_txt, result, result.to_base64()));
+// }

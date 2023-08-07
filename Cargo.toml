@@ -1,13 +1,10 @@
 [package]
-name = "cw-nameservice"
-description = "A name service"
+name = "cw-handler"
+description = "A test handler contract for Cosmos chain"
 version = "0.12.0"
-authors = ["Cory Levinson <cjlevinson@gmail.com>"]
+authors = ["jacksonmori <jackson@routerprotocol.com>"]
 edition = "2018"
 license = "Apache-2.0"
-repository = "https://github.com/InterWasm/cw-contracts"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -25,8 +22,6 @@ overflow-checks = true
 
 [features]
 backtraces = ["cosmwasm-std/backtraces"]
-# use library feature to disable all instantiate/execute/query exports
-library = []
 
 [dependencies]
 cosmwasm-std = "1.1.0"

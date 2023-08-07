@@ -28,7 +28,7 @@ pub enum ExecuteMsg {
     IAck {
         request_identifier: u64,
         exec_status: bool,
-        exec_data: Binary
+        exec_data: Binary,
     },
     SetDappMetadata {
         fee_payer_address: String,
@@ -40,18 +40,13 @@ pub enum ExecuteMsg {
     Transfer {
         name: String,
         to: String,
-    }
+    },
 }
 
 #[cw_serde]
 pub enum CustomExecuteMsg {
-    Register {
-        name: String,
-    },
-    Transfer {
-        name: String,
-        to: String,
-    } 
+    Register { name: String },
+    Transfer { name: String, to: String },
 }
 
 #[cw_serde]
@@ -72,6 +67,10 @@ pub enum GatewayMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
+    #[returns(Binary)]
+    IQuery { packet: Binary },
+
+    // following query msgs are used for debug
     // ResolveAddress returns the current address that the name resolves to
     #[returns(ResolveRecordResponse)]
     ResolveRecord { name: String },
@@ -79,15 +78,13 @@ pub enum QueryMsg {
     Config {},
     #[returns(LoadStatesResponse)]
     LoadStates {},
-    #[returns(Binary)]
-    IQuery { packet: Binary }
 }
 
 #[cw_serde]
 pub enum CustomQueryMsg {
-        // ResolveAddress returns the current address that the name resolves to
-        ResolveRecord { name: String },
-        Config {},
+    // ResolveAddress returns the current address that the name resolves to
+    ResolveRecord { name: String },
+    Config {},
 }
 
 // We define a custom struct for each query response
@@ -111,16 +108,14 @@ impl From<Config> for ConfigResponse {
     }
 }
 
-
 #[cw_serde]
 pub struct LoadStatesResponse {
     pub name_resolver: Vec<(String, String)>,
     pub request: Binary,
     pub result: Binary,
     pub nonce: u64,
-    pub pending: Vec<u64>
+    pub pending: Vec<u64>,
 }
-
 
 #[cw_serde]
 pub struct ResolveResultResponse {

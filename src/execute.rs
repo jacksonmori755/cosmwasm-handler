@@ -1,15 +1,16 @@
 use cosmwasm_std::{
-    from_binary, wasm_execute, Binary, DepsMut, Env,
-    MessageInfo, ReplyOn, Response, SubMsg, to_binary,
+    from_binary, wasm_execute, Binary, DepsMut, Env, Event, 
+    MessageInfo, ReplyOn, Response, StdError, SubMsg, to_binary,
 };
-
+use router_wasm_bindings::ethabi::Contract;
 
 use crate::error::ContractError;
 use crate::helper::{
-    abi_encode_string, assert_sent_sufficient_coin, get_request_packet, validate_name, abi_decode_to_binary,
+    abi_decode_to_binary, abi_encode_string, assert_sent_sufficient_coin, get_request_packet,
+    validate_name,
 };
 use crate::msg::{
-    GatewayMsg, CustomExecuteMsg,
+    ExecuteMsg, GatewayMsg, CustomExecuteMsg,
 };
 use crate::state::{NameRecord, CONFIG, NAME_RESOLVER, REQUEST, RESULT};
 
@@ -27,7 +28,9 @@ pub fn execute_register(
     assert_sent_sufficient_coin(&info.funds, config.purchase_price)?;
 
     let key = name.as_bytes();
-    let record = NameRecord { owner: info.sender.clone() };
+    let record = NameRecord {
+        owner: info.sender.clone(),
+    };
 
     if (NAME_RESOLVER.may_load(deps.storage, key)?).is_some() {
         // name is already taken
@@ -36,7 +39,11 @@ pub fn execute_register(
 
     // name is available
     NAME_RESOLVER.save(deps.storage, key, &record)?;
-    let result_txt = format!("execute_register, name: {}, owner: {}", name, info.sender.to_string());
+    let result_txt = format!(
+        "execute_register, name: {}, owner: {}",
+        name,
+        info.sender.to_string()
+    );
     let result = abi_encode_string(&result_txt);
     RESULT.save(deps.storage, &result)?;
     let response = Response::new().set_data(result);
@@ -82,8 +89,12 @@ pub fn execute_i_receive(
     _request_sender: String,
     payload: Binary,
 ) -> Result<Response, ContractError> {
+    // abi decode payload, which was encoded by request sender
     let decoded = abi_decode_to_binary(&payload)?;
+
+    // save request packet for debug
     REQUEST.save(deps.storage, &decoded)?;
+
     let msg: CustomExecuteMsg = from_binary(&decoded)?;
     match msg {
         CustomExecuteMsg::Register { name } => execute_register(deps, env, info, name),
@@ -98,16 +109,26 @@ pub fn execute_i_ack(
     exec_status: bool,
     exec_data: Binary,
 ) -> Result<Response, ContractError> {
-    REQUEST.save(deps.storage, &exec_data)?;
+    // abi decode payload, which was encoded by request sender
+    let decoded = abi_decode_to_binary(&exec_data)?;
+
+    // save ack packet in store for debug
+    REQUEST.save(deps.storage, &decoded)?;
+
     let result_txt = format!("Ack from handler contract:\naddress: {}\nrequest_identifier: {}\nexec_status:{}\nexec_data:{:?}", 
-    env.contract.address.to_string(), request_identifier, exec_status, exec_data);
+    env.contract.address.to_string(), request_identifier, exec_status, decoded);
+
+    // abi encode result_txt
     let result = abi_encode_string(&result_txt);
+
+    // save result in store for debug
     RESULT.save(deps.storage, &result)?;
+
     Ok(Response::new().set_data(result))
 }
 
 pub fn execute_i_send(
-    deps: DepsMut,
+    _deps: DepsMut,
     _env: Env,
     version: u64,
     route_amount: u64,
@@ -118,16 +139,19 @@ pub fn execute_i_send(
     handler_address: String,
     payload: Binary,
 ) -> Result<Response, ContractError> {
-    let request_packet = get_request_packet(handler_address, payload);
+    // request_packet = abi encode(handler_address, payload)
+    let request_packet = get_request_packet(&handler_address, &payload);
+
+    // create ISend msg of gateway contract
     let i_send_msg = GatewayMsg::ISend {
         version,
         route_amount,
         route_recipient,
-        dest_chain_id,
+        dest_chain_id: dest_chain_id.clone(),
         request_metadata,
-        request_packet,
+        request_packet: request_packet.clone(),
     };
-    REQUEST.save(deps.storage, &to_binary(&i_send_msg)?)?;
+
     let gateway_send_msg = wasm_execute(gateway_address, &i_send_msg, vec![])?;
     let submsg = SubMsg {
         id: ISEND_ID,
@@ -135,13 +159,29 @@ pub fn execute_i_send(
         reply_on: ReplyOn::Always,
         msg: gateway_send_msg.into(),
     };
-    let response = Response::new().add_submessage(submsg);
+
+    let response = Response::new()
+        .add_event(Event::new("ISend")
+                .add_attribute("dest_chain_id", dest_chain_id)
+                .add_attribute("handler_address", handler_address)
+                .add_attribute("payload", payload.to_base64())
+                .add_attribute("request_packet", request_packet.to_base64()),
+        )
+        .add_submessage(submsg);
+
     Ok(response)
 }
 
-pub fn set_dapp_metadata(deps: DepsMut, fee_payer_address: String, gateway_address: String) -> Result<Response, ContractError> {
-    let set_dapp_metadata_msg = GatewayMsg::SetDappMetadata { fee_payer_address };
-    REQUEST.save(deps.storage, &to_binary(&set_dapp_metadata_msg)?)?;
+pub fn set_dapp_metadata(
+    _deps: DepsMut,
+    fee_payer_address: String,
+    gateway_address: String,
+) -> Result<Response, ContractError> {
+    // create SetDappMetadata msg of gateway contract
+    let set_dapp_metadata_msg = GatewayMsg::SetDappMetadata {
+        fee_payer_address: fee_payer_address.clone(),
+    };
+
     let gateway_send_msg = wasm_execute(gateway_address, &set_dapp_metadata_msg, vec![])?;
     let submsg = SubMsg {
         id: ISEND_ID,
@@ -149,6 +189,10 @@ pub fn set_dapp_metadata(deps: DepsMut, fee_payer_address: String, gateway_addre
         reply_on: ReplyOn::Always,
         msg: gateway_send_msg.into(),
     };
-    let response = Response::new().add_submessage(submsg);
+
+    let response = Response::new()
+        .add_submessage(submsg)
+        .add_attribute("fee_payer_address", fee_payer_address);
+
     Ok(response)
 }

@@ -69,8 +69,8 @@ pub fn encode_packed(items: &[SolidityDataType]) -> (Vec<u8>, String) {
     (res, hexed)
 }
 
-pub fn get_request_packet(handler_address: String, payload: Binary) -> Binary {
-    let handler_token = Token::String(handler_address);
+pub fn get_request_packet(handler_address: &String, payload: &Binary) -> Binary {
+    let handler_token = Token::String(handler_address.clone());
     let payload_token = Token::Bytes(payload.as_slice().to_vec());
     let enc = encode(&vec![handler_token, payload_token]);
     Binary::from(enc)

@@ -198,7 +198,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw-nameservice"
+name = "cw-handler"
 version = "0.12.0"
 dependencies = [
  "cosmwasm-schema",
